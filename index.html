@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rusly - URL Shortener</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Rusly</h1>
+      <p class="tagline">
+        A URL Shortener built by <a href="https://links.wilfredalmeida.com" target="_blank" style="text-decoration:none; color: white;">Wilfred Almeida</a> using Rust Rocket and SQLite
+      </p>
+      <nav>
+        <ul>
+          <li><a href="https://blog.wilfredalmeida.com" target="_blank">Blog</a></li>
+          <li><a href="https://github.com/WilfredAlmeida/rusly" target="_blank">GitHub</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <form id="submitform">
+        <label for="url">Enter URL:</label>
+        <input
+          type="text"
+          id="url"
+          name="url"
+          placeholder="https://www.example.com"
+        />
+
+        <div id="toggle-wrapper">
+          <label for="custom-url-toggle">Custom URL:</label>
+          <input type="checkbox" id="custom-url-toggle" />
+        </div>
+        <div id="custom-url-wrapper">
+          <label for="custom-url">Enter custom URL:</label>
+          <input
+            type="text"
+            id="custom-url"
+            name="custom-url"
+            placeholder="short-url"
+          />
+        </div>
+
+        <button type="submit" class="btn">Shorten URL</button>
+      </form>
+      <div class="loading">
+        <img width="100px" height="100px" src="crab.gif" alt="Loading..." />
+      </div>
+      <div class="result">
+        <p>Shortened URL:</p>
+        <input type="text" id="shortened-url" name="shortened-url" readonly width="100%"/>
+        <button type="button" class="btn" onclick="copyToClipboard()">
+          Copy
+        </button>
+      </div>
+    </main>
+
+    <div class="footer">
+      <p class="made-with-love">Made with 💖 by <a href="https://links.wilfredalmeida.com" target="_blank" style="text-decoration:none; color: white;">Wilfred Almeida</a></p>
+    </div>
+
+    <script type="text/javascript">
+      const form = document.getElementById("submitform");
+      const urlInput = document.querySelector("#url");
+      const resultDiv = document.querySelector(".result");
+      const shortenedUrlInput = document.querySelector("#shortened-url");
+      const loadingDiv = document.querySelector(".loading");
+
+      const customUrlToggle = document.getElementById("custom-url-toggle");
+      const customUrlWrapper = document.getElementById("custom-url-wrapper");
+
+      customUrlWrapper.style.display = "none";
+
+      customUrlToggle.addEventListener("change", function () {
+        if (this.checked) {
+          customUrlWrapper.style.display = "block";
+        } else {
+          customUrlWrapper.style.display = "none";
+        }
+      });
+
+      function copyToClipboard() {
+        navigator.clipboard.writeText(shortenedUrlInput.value);
+      }
+
+      window.onload = () => {
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const url = urlInput.value;
+          loadingDiv.style.display = "block";
+
+          if (!url || url.trim().length === 0) {
+            alert("Please enter a valid URL.");
+            loadingDiv.style.display = "none";
+            return;
+          }
+
+          const customUrl = customUrlToggle.checked
+            ? customUrlWrapper.querySelector("#custom-url").value
+            : null;
+
+          if (
+            customUrl !== null &&
+            (customUrl.length != 7 || !isCustomLinkValid(customUrl))
+          ) {
+            alert("Custom url should be 7 alphabets. Hyphens (-) are allowed");
+            loadingDiv.style.display = "none";
+            return;
+          }
+
+          try {
+            // Call API
+
+            var raw = JSON.stringify({
+              url_to_shorten: url,
+              custom_link: customUrl,
+            });
+
+            var requestOptions = {
+              method: "POST",
+			  headers:{
+				origin: "https://wilfredalmeida.com",
+			  },
+              body: raw,
+              redirect: "follow",
+            };
+
+            const response = await fetch(
+              "https://rusly-production.up.railway.app/v1/shorten",
+              requestOptions
+            );
+
+            if (!response.ok) {
+              alert(response.body);
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const json = await response.json();
+            const shortenedUrl = json.shortened_url;
+
+            // Show result
+            shortenedUrlInput.value = shortenedUrl;
+            resultDiv.style.display = "block";
+            loadingDiv.style.display = "none";
+          } catch (e) {
+            console.error("Error:", e);
+          }
+        });
+      };
+
+      function isCustomLinkValid(murl) {
+        const pattern = RegExp("^[a-zA-Z-]+");
+        return pattern.test(murl);
+      }
+    </script>
+  </body>
+</html>
